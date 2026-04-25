@@ -1,0 +1,3 @@
+run.bat: This is a standard run script. Double-clicking this file will automatically create a Python virtual environment (if it doesn't already exist), install the dependencies listed in btc_bias\requirements.txt, and run your btc_bias.py script. This is the recommended way to simply run your code on Windows.
+
+build_exe.bat: If you meant literally compiling the Python code into a standalone .exe Windows executable, double-click this file. It will install your requirements along with PyInstaller, and compile your project into a standalone executable. Once finished, you will find your compiled executable inside the btc_bias\dist folder.
