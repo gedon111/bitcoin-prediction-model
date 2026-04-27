@@ -485,7 +485,7 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
             </div>
         </div>
         
-        <div class="section-title" style="margin-bottom: 0;">ACTIVE ORDER BLOCKS — MULTI-TIMEFRAME</div>
+        <div class="section-title">ACTIVE ORDER BLOCKS — MULTI-TIMEFRAME</div>
         <div class="section-note">All unmitigated OBs shown. Quality scored 0–5.</div>
         <div class="grid-3 ob-panel">
             {render_ob_column("1D", active_1d)}
