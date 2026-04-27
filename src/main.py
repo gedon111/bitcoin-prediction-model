@@ -602,8 +602,17 @@ def main():
     print("[7/7] Done.")
     print(f"✓ Report generated: {report_path}")
     print(f"✓ Bias: {bias} (Confidence: {confidence}/5)")
-    print(f"✓ Opening in browser...")
-    webbrowser.open(report_path)
+    print(f"✓ Opening in Google Chrome...")
+    try:
+        # Try standard 64-bit Chrome path
+        webbrowser.get('C:/Program Files/Google/Chrome/Application/chrome.exe %s').open('file://' + report_path)
+    except Exception:
+        try:
+            # Try 32-bit Chrome path
+            webbrowser.get('C:/Program Files (x86)/Google/Chrome/Application/chrome.exe %s').open('file://' + report_path)
+        except Exception:
+            # Fallback to default browser
+            webbrowser.open('file://' + report_path)
 
 if __name__ == "__main__":
     main()

@@ -40,8 +40,7 @@ echo Running src\main.py...
 echo ==============================================
 python src\main.py
 
-:: Deactivate and pause when done
+:: Deactivate when done
 echo ==============================================
 echo Execution finished.
 deactivate
-pause
