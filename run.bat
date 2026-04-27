@@ -27,18 +27,18 @@ echo Activating virtual environment...
 call venv\Scripts\activate.bat
 
 :: Install requirements
-if exist "btc_bias\requirements.txt" (
+if exist "requirements.txt" (
     echo Installing requirements...
-    pip install -r btc_bias\requirements.txt
+    pip install -r requirements.txt
 ) else (
     echo requirements.txt not found. Skipping dependency installation.
 )
 
 :: Run the script
 echo.
-echo Running btc_bias.py...
+echo Running src\main.py...
 echo ==============================================
-python btc_bias\btc_bias.py
+python src\main.py
 
 :: Deactivate and pause when done
 echo ==============================================

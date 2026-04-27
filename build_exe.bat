@@ -20,17 +20,16 @@ call venv\Scripts\activate.bat
 
 :: Install requirements and PyInstaller
 echo Installing requirements...
-pip install -r btc_bias\requirements.txt
+pip install -r requirements.txt
 pip install pyinstaller
 
 :: Build the executable
 echo Building executable...
-cd btc_bias
-pyinstaller --onefile --noconsole btc_bias.py
+pyinstaller --onefile --noconsole src\main.py
 
 echo ==============================================
 echo Build finished! 
-echo Your executable is located in btc_bias\dist\btc_bias.exe
+echo Your executable is located in dist\main.exe
 echo ==============================================
 deactivate
 pause

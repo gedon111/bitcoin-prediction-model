@@ -216,5 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-btc_report.html
-btc_report_files/
+
+# Reports
+reports/

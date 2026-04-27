@@ -594,7 +594,8 @@ def main():
     html_out = generate_html(bias, confidence, s1, s2, s3, s4, MACD_hist, (K, D, J), (ATR, atr_ratio), 
                              df_4h, df_1d, df_1h, active_1d, active_4h, active_1h, type_1d, type_4h, type_1h)
     
-    report_path = os.path.abspath("btc_report.html")
+    os.makedirs("reports", exist_ok=True)
+    report_path = os.path.abspath(os.path.join("reports", "btc_report.html"))
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(html_out)
         
