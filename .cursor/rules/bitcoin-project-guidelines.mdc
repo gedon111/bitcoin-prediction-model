@@ -1,0 +1,61 @@
+---
+description: Project-wide Bitcoin prediction architecture and coding guidelines
+alwaysApply: true
+---
+
+# Bitcoin Prediction Project Guidelines
+
+- Treat this as a `Python 3.11+` + `FastAPI` backend with a `React` + `TypeScript` + `Vite` frontend.
+- Write concise, technical responses and prefer modular, functional code over class-heavy designs.
+- Use descriptive snake_case names for Python files, folders, functions, and variables.
+- Use type hints for all Python function signatures and prefer `Pydantic` models over raw dicts.
+- Use `async def` for I/O-bound FastAPI/database/external API work and `def` for pure functions.
+- Prefer FastAPI dependency injection with `Depends()` and lifespan context managers over startup/shutdown events.
+- Use `HTTPException` for expected API errors and middleware for logging, unexpected errors, and performance concerns.
+- Follow PEP 8, keep code simple and readable, and add docstrings for public Python modules and functions.
+
+## Backend Structure
+
+- Prefer this backend layout: `app/main.py`, `app/models/`, `app/schemas/`, `app/routers/`, `app/dependencies/`, `app/services/`, `app/tests/`.
+- Use SQLAlchemy async support with SQLite for local persistence.
+- Use Pydantic request/response schemas and clear route return typing.
+
+## Project Architecture
+
+- Build a modular Bitcoin predictive pricing system that aggregates multiple plugin signals into a weighted daily trend/price score.
+- Implement a `BasePlugin` abstract base class for analysis plugins, even though the rest of the codebase should stay mostly functional.
+- Each plugin should expose a standard `calculate_score(date)` and `fetch_daily_data()` contract.
+- Active plugins, their weights, raw values, and normalized scores should flow into an aggregate predictor.
+
+## Expected Data Model
+
+- `daily_btc_prices`: daily BTC price in USD/PHP plus 24h volume.
+- `plugin_metadata`: plugin id, name, activation state, and weight.
+- `daily_factor_scores`: dated raw factor values and normalized scores per plugin.
+
+## Plugin Roadmap
+
+- Implement plugins as separate modules under `plugins/`.
+- Prioritize `halving_cycle.py` and `macro_liquidity.py` first.
+- Additional planned plugins include `sentiment_news.py`, `gold_oil_model.py`, and `seasonal_trends.py`.
+
+## Execution Flow
+
+- Daily scheduler runs around `00:01 UTC`.
+- Fetch BTC prices from CoinGecko or Binance.
+- Run all active plugins and persist normalized scores.
+- Aggregate weighted plugin scores into the daily predictive trend score.
+
+## Frontend Expectations
+
+- Provide a control panel to enable/disable plugins, adjust weights, and trigger manual scrapes.
+- Visualize aggregated scores against BTC prices using charts such as Recharts or Chart.js.
+
+## Preferred Implementation Order
+
+1. Scaffold FastAPI backend and SQLite setup.
+2. Create `BasePlugin`.
+3. Scaffold the React/Vite/TypeScript frontend.
+4. Implement plugins, starting with `halving_cycle` and `macro_liquidity`.
+5. Add APScheduler or equivalent background job support.
+6. Connect frontend charts to aggregated scores and actual USD/PHP prices.
