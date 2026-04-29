@@ -714,7 +714,7 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
         else:
             for ob in active_obs:
                 type_color = 'var(--bull)' if ob['type'] == 'DEMAND' else 'var(--bear)'
-                html += f'<div class="ob-card" style="border-left-color: {type_color}">'
+                html += f'<div class="ob-card stagger-item" style="border-left-color: {type_color}">'
                 
                 type_class = 'bull-bg' if ob['type'] == 'DEMAND' else 'bear-bg'
                 html += f'<div class="ob-top-row">'
@@ -840,18 +840,21 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
             color: var(--text);
             font-family: 'DM Sans', sans-serif;
             min-height: 100vh;
+            line-height: 1.45;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
             background-image: 
               repeating-linear-gradient(0deg, transparent, transparent 39px, var(--grid) 39px, var(--grid) 40px),
               repeating-linear-gradient(90deg, transparent, transparent 39px, var(--grid) 39px, var(--grid) 40px);
         }}
-        .container {{ max-width: 1200px; margin: 0 auto; padding: 32px 24px; }}
-        .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 40px; }}
+        .container {{ max-width: 1600px; margin: 0 auto; padding: 26px 24px; }}
+        .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 32px; }}
         .header-left {{ display: flex; flex-direction: column; gap: 4px; }}
         .header-title {{ font-family: 'Orbitron', sans-serif; font-size: 18px; color: var(--accent); font-weight: 700; }}
         .header-subtext {{ font-family: 'DM Sans', sans-serif; color: var(--muted); font-size: 12px; }}
         .header-time {{ font-family: 'JetBrains Mono', monospace; color: var(--muted); font-size: 12px; }}
-        .bias-hero {{ text-align: center; margin-bottom: 48px; }}
-        .bias-label {{ font-family: 'Syne', sans-serif; letter-spacing: 0.3em; color: var(--muted); font-size: 11px; text-transform: uppercase; margin-bottom: 16px; font-weight: 700; }}
+        .bias-hero {{ text-align: center; margin-bottom: 40px; }}
+        .bias-label {{ font-family: 'Orbitron', sans-serif; letter-spacing: 0.3em; color: var(--muted); font-size: 11px; text-transform: uppercase; margin-bottom: 16px; font-weight: 700; }}
         .bias-badge {{
             display: inline-block; font-family: 'Orbitron', sans-serif; font-weight: 900;
             font-size: clamp(48px, 8vw, 96px); color: {bias_color}; text-shadow: 0 0 40px {bias_color}99;
@@ -859,20 +862,21 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
             background: {bias_color}0d; animation: pulse-glow 2s ease-in-out infinite;
         }}
         @keyframes pulse-glow {{ 0%, 100% {{ box-shadow: 0 0 20px {bias_color}4d; }} 50% {{ box-shadow: 0 0 60px {bias_color}cc, 0 0 100px {bias_color}4d; }} }}
-        .conf-label {{ font-family: 'Syne', sans-serif; font-size: 11px; letter-spacing: 0.2em; color: var(--muted); margin-top: 32px; font-weight: 700; }}
+        .conf-label {{ font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 0.2em; color: var(--muted); margin-top: 32px; font-weight: 700; }}
         .conf-bar {{ display: flex; justify-content: center; gap: 6px; margin-top: 12px; }}
         .conf-segment {{ width: 48px; height: 6px; border-radius: 3px; }}
         .conf-filled {{ background: {bias_color}; }}
         .conf-empty {{ background: var(--border); }}
         .conf-text {{ font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-top: 12px; color: var(--muted); }}
         .bias-summary {{ margin: 20px auto 0; max-width: 480px; font-size: 15px; line-height: 1.6; }}
-        .section-title {{ font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; margin-bottom: 16px; }}
+        .section-title {{ font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; margin-bottom: 16px; }}
         .section-note {{ font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted); margin-top: -12px; margin-bottom: 16px; }}
-        .grid-3 {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }}
-        .indicator-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; opacity: 0; animation: fadeUp 0.4s ease forwards; }}
+        .grid-3 {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 24px; }}
+        .ob-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }}
+        .indicator-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 18px; opacity: 1; animation: none; }}
         .ic-1 {{ animation-delay: 0.3s; }} .ic-2 {{ animation-delay: 0.4s; }} .ic-3 {{ animation-delay: 0.5s; }}
         .card-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }}
-        .card-title {{ font-family: 'Syne', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.25em; color: var(--muted); text-transform: uppercase; }}
+        .card-title {{ font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.25em; color: var(--muted); text-transform: uppercase; }}
         .signal-pill {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 11px; padding: 3px 10px; border-radius: 100px; display: inline-flex; }}
         .signal-pill.bull {{ color: var(--bull); background: #00e6761f; border: 1px solid #00e67666; }}
         .signal-pill.bear {{ color: var(--bear); background: #ff17441f; border: 1px solid #ff174466; }}
@@ -880,7 +884,7 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
         .val-large {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 28px; color: var(--text); line-height: 1.2; }}
         .val-sub {{ font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); margin-top: 4px; }}
         .val-meta {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 16px; }}
-        .ob-panel {{ opacity: 0; animation: fadeUp 0.4s ease forwards; animation-delay: 0.5s; }}
+        .ob-panel {{ opacity: 1; animation: none; }}
         .ob-header-pill {{ display: inline-block; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px; background: #00b4ff1a; border: 1px solid #00b4ff4d; padding: 6px 16px; border-radius: 4px; margin-bottom: 16px; color: var(--accent); }}
         .empty-state {{ text-align: center; color: var(--muted); font-size: 13px; font-style: italic; padding: 20px 0; }}
         .ob-card {{ background: var(--card); border-radius: 0 6px 6px 0; border: 1px solid var(--border); border-left-width: 3px; padding: 14px 16px; margin-bottom: 10px; }}
@@ -895,16 +899,70 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
         .ob-score-num {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 11px; color: var(--muted); }}
         .ob-badges {{ display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }}
         .ob-badge {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 9px; color: var(--accent); background: #00b4ff14; border: 1px solid #00b4ff40; padding: 1px 6px; border-radius: 100px; }}
-        .mtf-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 32px; opacity: 0; animation: fadeUp 0.4s ease forwards; animation-delay: 0.65s; }}
+        .mtf-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 24px; opacity: 1; animation: none; }}
         .mtf-row {{ display: flex; text-align: center; }}
         .mtf-col {{ flex: 1; padding: 0 16px; border-right: 1px solid var(--border); }}
         .mtf-col:last-child {{ border-right: none; }}
         .mtf-tf {{ font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 12px; color: var(--accent); }}
         .mtf-type {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 14px; margin-top: 8px; }}
         .mtf-price {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 11px; color: var(--muted); margin-top: 4px; }}
-        .mtf-align {{ font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); color: {align_color}; }}
+        .mtf-align {{ font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); color: {align_color}; }}
         .footer {{ border-top: 1px solid var(--border); padding-top: 24px; margin-top: 16px; text-align: center; color: var(--muted); font-size: 12px; opacity: 0; animation: fadeUp 0.4s ease forwards; animation-delay: 0.75s; }}
         @keyframes fadeUp {{ from {{ opacity: 0; transform: translateY(16px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+
+        /* Top-level tabs */
+        .top-tabs-bar {{
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            margin: 18px 0 22px;
+            padding: 12px 0 12px;
+            background: rgba(8, 11, 18, 0.78);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+        }}
+        .top-tab-buttons {{ display: flex; gap: 10px; flex-wrap: wrap; }}
+        .top-tab-btn {{
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 12px;
+            letter-spacing: 0.02em;
+            color: var(--muted);
+            background: #00b4ff0d;
+            border: 1px solid var(--border);
+            padding: 10px 14px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease;
+        }}
+        .top-tab-btn:hover {{ transform: translateY(-1px); border-color: #2a415f; }}
+        .top-tab-btn.active {{
+            color: var(--accent);
+            background: #00b4ff1a;
+            border-color: #00b4ff66;
+        }}
+
+        .top-tab-pane {{ display: none; }}
+        .top-tab-pane.active {{
+            display: block;
+            animation: panelIn 240ms ease-out;
+        }}
+        @keyframes panelIn {{
+            from {{ opacity: 0; transform: translateY(10px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+
+        .stagger-item {{
+            opacity: 0;
+            transform: translateY(10px);
+        }}
+        .top-tab-pane.active .stagger-item {{
+            animation: itemIn 260ms ease-out forwards;
+        }}
+        @keyframes itemIn {{
+            from {{ opacity: 0; transform: translateY(10px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
 
         /* News tabs */
         .news-card {{
@@ -935,7 +993,14 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
             border-color: #00b4ff66;
         }}
         .news-tab-pane {{ display: none; }}
-        .news-tab-pane.active {{ display: block; }}
+        .news-tab-pane.active {{
+            display: block;
+            animation: newsPanelIn 200ms ease-out;
+        }}
+        @keyframes newsPanelIn {{
+            from {{ opacity: 0; transform: translateY(8px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
         .news-item {{
             padding: 10px 0;
             border-top: 1px solid var(--border);
@@ -969,75 +1034,111 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
             <div class="bias-summary">{summary}</div>
         </div>
         
-        <div class="section-title">INDICATOR SIGNALS</div>
-        <div class="grid-3">
-            <div class="indicator-card ic-1">
-                <div class="card-header">
-                    <div class="card-title">MACD</div>
-                    {get_signal_pill(s1)}
-                </div>
-                <div class="val-large">{'+' if s1_val > 0 else ''}{s1_val:,.1f}</div>
-                <div class="val-meta">Hist trend: {'↑' if s1 == 1 else '↓' if s1 == -1 else '-'}</div>
+        <div class="top-tabs-bar">
+            <div class="top-tab-buttons">
+                <button class="top-tab-btn active" type="button" data-tab="tab_indicators">Indicators</button>
+                <button class="top-tab-btn" type="button" data-tab="tab_orderblocks">Order Blocks</button>
+                <button class="top-tab-btn" type="button" data-tab="tab_news">News</button>
             </div>
-            <div class="indicator-card ic-2">
-                <div class="card-header">
-                    <div class="card-title">KDJ</div>
-                    {get_signal_pill(s2)}
-                </div>
-                <div class="val-sub" style="font-size: 14px; margin-top: 0; font-weight:600; color:var(--text);">K: {kdj_vals[0]:.1f}<br>D: {kdj_vals[1]:.1f}<br>J: {kdj_vals[2]:.1f}</div>
-                <div class="val-meta">Zone: {'Overbought' if kdj_vals[2] > 80 else 'Oversold' if kdj_vals[2] < 20 else 'Neutral'}</div>
-            </div>
-            <div class="indicator-card ic-3">
-                <div class="card-header">
-                    <div class="card-title">ATR</div>
-                    <span class="signal-pill neutral">— NEUT</span>
-                </div>
-                <div class="val-large">{atr_vals[0]:.1f}</div>
-                <div class="val-sub">ATR/200 ratio: {atr_vals[1]:.2f}</div>
-                <div class="val-meta">Regime: {'Low Vol' if atr_vals[1] < 0.8 else 'High Vol'}</div>
-            </div>
-        </div>
-        
-        <div class="section-title">ACTIVE ORDER BLOCKS — MULTI-TIMEFRAME</div>
-        <div class="section-note">All unmitigated OBs shown. Quality scored 0–5.</div>
-        <div class="grid-3 ob-panel">
-            {render_ob_column("1D", active_1d)}
-            {render_ob_column("4H", active_4h)}
-            {render_ob_column("1H", active_1h)}
-        </div>
-        
-        <div class="mtf-card">
-            <div class="card-title" style="margin-bottom: 16px;">MTF CONFLUENCE</div>
-            <div class="mtf-row">
-                {render_mtf_col("1D", type_1d, sum([o['top']+o['bottom'] for o in active_1d if o['type']==type_1d])/2/len([o for o in active_1d if o['type']==type_1d]) if type_1d and [o for o in active_1d if o['type']==type_1d] else 0)}
-                {render_mtf_col("4H", type_4h, sum([o['top']+o['bottom'] for o in active_4h if o['type']==type_4h])/2/len([o for o in active_4h if o['type']==type_4h]) if type_4h and [o for o in active_4h if o['type']==type_4h] else 0)}
-                {render_mtf_col("1H", type_1h, sum([o['top']+o['bottom'] for o in active_1h if o['type']==type_1h])/2/len([o for o in active_1h if o['type']==type_1h]) if type_1h and [o for o in active_1h if o['type']==type_1h] else 0)}
-            </div>
-            <div class="mtf-align">{align_text}</div>
         </div>
 
-        <div class="section-title">NEWS</div>
-        <div class="news-card">
-            <div class="news-tab-buttons">
-                <button class="news-tab-btn active" type="button" data-tab="news_financialjuice">FinancialJuice</button>
-                <button class="news-tab-btn" type="button" data-tab="news_zerohedge">ZeroHedge</button>
-                <button class="news-tab-btn" type="button" data-tab="news_unusual_whales">Unusual Whales</button>
-                <button class="news-tab-btn" type="button" data-tab="news_forexfactory">ForexFactory (Economic)</button>
+        <div class="top-tab-pane active" id="tab_indicators">
+            <div class="section-title">INDICATOR SIGNALS</div>
+            <div class="grid-3">
+                <div class="indicator-card stagger-item ic-1">
+                    <div class="card-header">
+                        <div class="card-title">MACD</div>
+                        {get_signal_pill(s1)}
+                    </div>
+                    <div class="val-large">{'+' if s1_val > 0 else ''}{s1_val:,.1f}</div>
+                    <div class="val-meta">Hist trend: {'↑' if s1 == 1 else '↓' if s1 == -1 else '-'}</div>
+                </div>
+                <div class="indicator-card stagger-item ic-2">
+                    <div class="card-header">
+                        <div class="card-title">KDJ</div>
+                        {get_signal_pill(s2)}
+                    </div>
+                    <div class="val-sub" style="font-size: 14px; margin-top: 0; font-weight:600; color:var(--text);">K: {kdj_vals[0]:.1f}<br>D: {kdj_vals[1]:.1f}<br>J: {kdj_vals[2]:.1f}</div>
+                    <div class="val-meta">Zone: {'Overbought' if kdj_vals[2] > 80 else 'Oversold' if kdj_vals[2] < 20 else 'Neutral'}</div>
+                </div>
+                <div class="indicator-card stagger-item ic-3">
+                    <div class="card-header">
+                        <div class="card-title">ATR</div>
+                        <span class="signal-pill neutral">— NEUT</span>
+                    </div>
+                    <div class="val-large">{atr_vals[0]:.1f}</div>
+                    <div class="val-sub">ATR/200 ratio: {atr_vals[1]:.2f}</div>
+                    <div class="val-meta">Regime: {'Low Vol' if atr_vals[1] < 0.8 else 'High Vol'}</div>
+                </div>
             </div>
-
-            <div class="news-tab-pane active" id="news_financialjuice">
-                {news_financialjuice_html}
-            </div>
-            <div class="news-tab-pane" id="news_zerohedge">
-                {news_zerohedge_html}
-            </div>
-            <div class="news-tab-pane" id="news_unusual_whales">
-                {news_unusual_whales_html}
-            </div>
-            <div class="news-tab-pane" id="news_forexfactory">
-                {news_forexfactory_html}
+            
+            <div class="mtf-card">
+                <div class="card-title" style="margin-bottom: 16px;">MTF CONFLUENCE</div>
+                <div class="mtf-row">
+                    {render_mtf_col("1D", type_1d, sum([o['top']+o['bottom'] for o in active_1d if o['type']==type_1d])/2/len([o for o in active_1d if o['type']==type_1d]) if type_1d and [o for o in active_1d if o['type']==type_1d] else 0)}
+                    {render_mtf_col("4H", type_4h, sum([o['top']+o['bottom'] for o in active_4h if o['type']==type_4h])/2/len([o for o in active_4h if o['type']==type_4h]) if type_4h and [o for o in active_4h if o['type']==type_4h] else 0)}
+                    {render_mtf_col("1H", type_1h, sum([o['top']+o['bottom'] for o in active_1h if o['type']==type_1h])/2/len([o for o in active_1h if o['type']==type_1h]) if type_1h and [o for o in active_1h if o['type']==type_1h] else 0)}
+                </div>
+                <div class="mtf-align">{align_text}</div>
             </div>
         </div>
+
+        <div class="top-tab-pane" id="tab_orderblocks">
+            <div class="section-title">ACTIVE ORDER BLOCKS — MULTI-TIMEFRAME</div>
+            <div class="section-note">All unmitigated OBs shown. Quality scored 0–5.</div>
+            <div class="ob-grid ob-panel">
+                {render_ob_column("1D", active_1d)}
+                {render_ob_column("4H", active_4h)}
+                {render_ob_column("1H", active_1h)}
+            </div>
+        </div>
+
+        <div class="top-tab-pane" id="tab_news">
+            <div class="section-title">NEWS</div>
+            <div class="news-card">
+                <div class="news-tab-buttons">
+                    <button class="news-tab-btn active" type="button" data-tab="news_financialjuice">FinancialJuice</button>
+                    <button class="news-tab-btn" type="button" data-tab="news_zerohedge">ZeroHedge</button>
+                    <button class="news-tab-btn" type="button" data-tab="news_unusual_whales">Unusual Whales</button>
+                    <button class="news-tab-btn" type="button" data-tab="news_forexfactory">ForexFactory (Economic)</button>
+                </div>
+
+                <div class="news-tab-pane active" id="news_financialjuice">
+                    {news_financialjuice_html}
+                </div>
+                <div class="news-tab-pane" id="news_zerohedge">
+                    {news_zerohedge_html}
+                </div>
+                <div class="news-tab-pane" id="news_unusual_whales">
+                    {news_unusual_whales_html}
+                </div>
+                <div class="news-tab-pane" id="news_forexfactory">
+                    {news_forexfactory_html}
+                </div>
+            </div>
+        </div>
+
+        <script>
+            (function () {{
+                const btns = document.querySelectorAll('.top-tab-btn');
+                const panes = document.querySelectorAll('.top-tab-pane');
+                function setActive(tabId) {{
+                    btns.forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+                    panes.forEach(p => p.classList.toggle('active', p.id === tabId));
+
+                    const activePane = document.getElementById(tabId);
+                    if (activePane) {{
+                        const items = activePane.querySelectorAll('.stagger-item');
+                        items.forEach((el, idx) => {{
+                            el.style.animationDelay = (idx * 70) + 'ms';
+                        }});
+                    }}
+                }}
+                btns.forEach(b => b.addEventListener('click', () => setActive(b.dataset.tab)));
+                const initial = document.querySelector('.top-tab-btn.active');
+                if (initial) setActive(initial.dataset.tab);
+            }})();
+        </script>
 
         <script>
             (function () {{
@@ -1048,7 +1149,7 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
                     panes.forEach(p => p.classList.toggle('active', p.id === tabId));
                 }};
                 btns.forEach(b => b.addEventListener('click', () => setActive(b.dataset.tab)));
-            }} )();
+            }})();
         </script>
         
         <div class="footer">
