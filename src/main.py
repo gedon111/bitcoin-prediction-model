@@ -6,6 +6,16 @@ import webbrowser
 import os
 import sys
 import warnings
+from html import escape
+import time
+import json
+import re
+from urllib.parse import urljoin
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import feedparser
+from bs4 import BeautifulSoup
+from icalendar import Calendar as ICalendar
 
 warnings.filterwarnings('ignore')
 if sys.stdout.encoding != 'utf-8':
@@ -234,10 +244,443 @@ def compute_smc(df):
 def get_active_obs(obs, current_bar, max_age=500):
     return [ob for ob in obs if ob['created_at'] < current_bar < ob['mitigated_at'] and (current_bar - ob['created_at']) <= max_age]
 
+def _format_dt_from_struct_time(st):
+    if not st:
+        return None
+    try:
+        return datetime.datetime(*st[:6]).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return None
+
+def _format_dt_from_iso(s):
+    if not s:
+        return None
+    try:
+        s2 = s.replace("Z", "+00:00")
+        dt = datetime.datetime.fromisoformat(s2)
+        return dt.strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return str(s)
+
+def fetch_x_recent_posts(username, count=10):
+    """
+    Best-effort X (Twitter) fetch using official API v2.
+
+    Uses env vars:
+      - X_BEARER_TOKEN: required for API calls
+    """
+    token = os.getenv("X_BEARER_TOKEN", "").strip()
+    if not token:
+        return None
+
+    headers = {"Authorization": f"Bearer {token}"}
+    base = "https://api.twitter.com/2"
+
+    try:
+        # Resolve username -> user id
+        r1 = requests.get(
+            f"{base}/users/by/username/{username}",
+            headers=headers,
+            timeout=15,
+        )
+        r1.raise_for_status()
+        user_id = r1.json()["data"]["id"]
+
+        # Fetch recent tweets
+        r2 = requests.get(
+            f"{base}/users/{user_id}/tweets",
+            headers=headers,
+            params={
+                "max_results": min(100, int(count)),
+                "tweet.fields": "created_at",
+            },
+            timeout=15,
+        )
+        r2.raise_for_status()
+        tweets = r2.json().get("data", []) or []
+
+        out = []
+        for t in tweets[:count]:
+            created_at = t.get("created_at")
+            created_txt = _format_dt_from_iso(created_at)
+            tid = t.get("id")
+            url = f"https://x.com/{username}/status/{tid}" if tid else None
+            out.append({
+                "title": t.get("text", "").strip() or "(no text)",
+                "url": url,
+                "datetime": created_txt,
+            })
+        return out
+    except Exception:
+        return None
+
+def fetch_rss_entries(feed_url_candidates, limit=10, timeout=20):
+    """
+    Fetch and normalize RSS/Atom items. Returns list[{title,url,datetime}] or None.
+    """
+    for feed_url in feed_url_candidates:
+        try:
+            d = feedparser.parse(feed_url)
+            if getattr(d, "bozo", False):
+                # bozo indicates parse issues but sometimes still has entries; be conservative.
+                pass
+            entries = getattr(d, "entries", None) or []
+            if not entries:
+                continue
+
+            out = []
+            for e in entries[:limit]:
+                title = e.get("title") or e.get("summary") or "(untitled)"
+                link = e.get("link") or e.get("id") or e.get("guid") or None
+                dt_txt = None
+
+                # Prefer struct_time for consistent formatting.
+                dt_txt = _format_dt_from_struct_time(e.get("published_parsed")) or _format_dt_from_struct_time(e.get("updated_parsed"))
+                if not dt_txt:
+                    dt_txt = e.get("published") or e.get("updated") or None
+
+                out.append({
+                    "title": title,
+                    "url": link,
+                    "datetime": dt_txt,
+                })
+            return out
+        except Exception:
+            continue
+    return None
+
+def scrape_latest_headlines(page_url_candidates, link_predicate_regexes, limit=10, timeout=20):
+    """
+    Generic HTML scrape fallback for “latest headlines”.
+    """
+    for page_url in page_url_candidates:
+        try:
+            resp = requests.get(
+                page_url,
+                timeout=timeout,
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            resp.raise_for_status()
+
+            soup = BeautifulSoup(resp.text, "html.parser")
+            seen = set()
+            out = []
+            a_tags = soup.find_all("a", href=True)
+
+            for a in a_tags:
+                href = a.get("href", "")
+                if not href:
+                    continue
+
+                href_abs = href if href.startswith("http") else urljoin(page_url, href)
+
+                if not any(re.search(rx, href_abs, flags=re.I) for rx in link_predicate_regexes):
+                    continue
+
+                text = a.get_text(" ", strip=True) or a.get("title") or ""
+                if not text:
+                    continue
+
+                # De-dupe by URL
+                if href_abs in seen:
+                    continue
+                seen.add(href_abs)
+
+                out.append({
+                    "title": text,
+                    "url": href_abs,
+                    "datetime": None,
+                })
+                if len(out) >= limit:
+                    break
+
+            if out:
+                return out
+        except Exception:
+            continue
+    return None
+
+def fetch_financialjuice_news(limit=10):
+    # Best-effort: official X API if token exists.
+    x_items = fetch_x_recent_posts("financialjuice", count=limit)
+    if x_items:
+        return x_items
+
+    rss_candidates = [
+        "https://www.financialjuice.com/feed.ashx?xy=rss",
+        # Cloudflare bypass sometimes works on client setups.
+        "https://r.jina.ai/https://www.financialjuice.com/feed.ashx?xy=rss",
+    ]
+    rss_items = fetch_rss_entries(rss_candidates, limit=limit)
+    if rss_items:
+        return rss_items
+
+    # Fallback: scrape their website “News” links.
+    scrape_items = scrape_latest_headlines(
+        page_url_candidates=["https://www.financialjuice.com/"],
+        link_predicate_regexes=[r"/News/|feed\.ashx\?xy=rss|/news/i"],
+        limit=limit,
+    )
+    return scrape_items
+
+def fetch_zerohedge_news(limit=10):
+    x_items = fetch_x_recent_posts("zerohedge", count=limit)
+    if x_items:
+        return x_items
+
+    rss_candidates = [
+        "https://www.zerohedge.com/rss.xml",
+        "https://www.zerohedge.com/feed",
+        "https://www.zerohedge.com/blog/feed",
+        "http://feeds.feedburner.com/zerohedge/feed",
+    ]
+    rss_items = fetch_rss_entries(rss_candidates, limit=limit)
+    if rss_items:
+        return rss_items
+
+    scrape_items = scrape_latest_headlines(
+        page_url_candidates=["https://www.zerohedge.com/"],
+        link_predicate_regexes=[r"/articles/|/article/|/blog/"],
+        limit=limit,
+    )
+    return scrape_items
+
+def fetch_unusual_whales_news(limit=10):
+    # Handle likely username variants.
+    x_items = fetch_x_recent_posts("unusualwhales", count=limit) or fetch_x_recent_posts("unusual_whales", count=limit)
+    if x_items:
+        return x_items
+
+    rss_candidates = [
+        "https://media.rss.com/unusualwhales/feed.xml",
+        "https://rss.com/podcasts/unusualwhales/feed.xml",
+    ]
+    rss_items = fetch_rss_entries(rss_candidates, limit=limit)
+    if rss_items:
+        return rss_items
+
+    scrape_items = scrape_latest_headlines(
+        page_url_candidates=["https://unusualwhales.com/news-feed", "https://unusualwhales.com/"],
+        link_predicate_regexes=[r"unusualwhales\.com/|/podcasts/|/news-feed/"],
+        limit=limit,
+    )
+    return scrape_items
+
+def _extract_forexfactory_weekly_ics_url():
+    """
+    ForexFactory updates the versioned ICS URL occasionally.
+    We try to discover the current version, falling back to the base URL.
+    """
+    calendar_page = "https://www.forexfactory.com/calendar"
+    fallback = "https://nfs.faireconomy.media/ff_calendar_thisweek.ics"
+
+    try:
+        resp = requests.get(
+            calendar_page,
+            timeout=15,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        resp.raise_for_status()
+
+        m = re.search(
+            r"(https?://nfs\.faireconomy\.media/ff_calendar_thisweek\.ics\?version=[a-zA-Z0-9]+)",
+            resp.text,
+        )
+        if m:
+            return m.group(1)
+    except Exception:
+        pass
+
+    return fallback
+
+def fetch_forexfactory_economic_news(limit_max_items=200):
+    """
+    Returns high-impact events from ForexFactory ICS.
+
+    Rules (per user):
+      - Major = High impact only
+      - USD + United States events: include high-impact events for the current month
+      - Other events: include high-impact events for today + next 7 days
+    """
+    ics_url = _extract_forexfactory_weekly_ics_url()
+    try:
+        resp = requests.get(
+            ics_url,
+            timeout=20,
+            headers={"User-Agent": "Mozilla/5.0"},
+        )
+        resp.raise_for_status()
+        ics_text = resp.text
+    except Exception:
+        return []
+
+    cal = ICalendar.from_ical(ics_text)
+
+    now = datetime.datetime.now()
+    today = now.date()
+    end_week = today + datetime.timedelta(days=7)
+
+    start_month = datetime.date(now.year, now.month, 1)
+    if now.month == 12:
+        next_month = datetime.date(now.year + 1, 1, 1)
+    else:
+        next_month = datetime.date(now.year, now.month + 1, 1)
+    end_month = next_month - datetime.timedelta(days=1)
+
+    def is_high_impact(text_upper):
+        # Try common patterns, but keep regex conservative.
+        return (
+            bool(re.search(r"\bHIGH\b", text_upper)) or
+            "HIGH IMPACT" in text_upper or
+            "IMPACT: HIGH" in text_upper
+        )
+
+    def is_usa(text_upper):
+        return (
+            "USD" in text_upper or
+            "UNITED STATES" in text_upper or
+            bool(re.search(r"\bUS\b", text_upper))
+        )
+
+    out = []
+    for component in cal.walk():
+        if component.name != "VEVENT":
+            continue
+
+        summary = str(component.get("SUMMARY", "") or "").strip()
+        description = str(component.get("DESCRIPTION", "") or "").strip()
+        text_upper = f"{summary} {description}".upper()
+
+        if not is_high_impact(text_upper):
+            continue
+
+        dtstart = component.get("DTSTART")
+        dt = None
+        if dtstart is not None:
+            dt = getattr(dtstart, "dt", dtstart)
+
+        if dt is None:
+            continue
+
+        if isinstance(dt, datetime.datetime):
+            dt_date = dt.date()
+            dt_str = dt.strftime("%Y-%m-%d %H:%M")
+        else:
+            # date-only event
+            dt_date = dt
+            dt_str = str(dt_date)
+
+        usa = is_usa(text_upper)
+        if usa:
+            if not (start_month <= dt_date <= end_month):
+                continue
+        else:
+            if not (today <= dt_date <= end_week):
+                continue
+
+        # Best-effort link extraction from description text.
+        url = None
+        murl = re.search(r"https?://[^\s\"'>]+", description)
+        if murl:
+            url = murl.group(0)
+
+        out.append({
+            "title": summary or "(untitled)",
+            "url": url,
+            "datetime": dt_str,
+        })
+
+    out.sort(key=lambda x: x.get("datetime") or "")
+    return out[:limit_max_items]
+
+def fetch_all_news_concurrent(cache_ttl_seconds=900):
+    """
+    Fetch brand news + ForexFactory economic releases concurrently with a local cache.
+    Cache is keyed per-source to reduce rate limiting and latency.
+    """
+    os.makedirs("reports", exist_ok=True)
+    cache_path = os.path.abspath(os.path.join("reports", "news_cache.json"))
+
+    def load_cache():
+        try:
+            if not os.path.exists(cache_path):
+                return {}
+            with open(cache_path, "r", encoding="utf-8") as f:
+                return json.load(f) or {}
+        except Exception:
+            return {}
+
+    def save_cache(cache_obj):
+        try:
+            with open(cache_path, "w", encoding="utf-8") as f:
+                json.dump(cache_obj, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    cache = load_cache()
+    now_ts = time.time()
+
+    sources = {
+        "financialjuice": fetch_financialjuice_news,
+        "zerohedge": fetch_zerohedge_news,
+        "unusual_whales": fetch_unusual_whales_news,
+        "forexfactory": fetch_forexfactory_economic_news,
+    }
+
+    results = {}
+    to_fetch = {}
+
+    for key, fetch_fn in sources.items():
+        cached = cache.get(key)
+        fetched_at = cached.get("fetched_at") if isinstance(cached, dict) else None
+        items = cached.get("items") if isinstance(cached, dict) else None
+
+        if isinstance(items, list) and fetched_at is not None and (now_ts - float(fetched_at) < cache_ttl_seconds):
+            results[key] = items
+        else:
+            to_fetch[key] = fetch_fn
+
+    if to_fetch:
+        max_workers = min(8, max(1, len(to_fetch)))
+        with ThreadPoolExecutor(max_workers=max_workers) as ex:
+            future_map = {}
+            for key, fetch_fn in to_fetch.items():
+                # Economic feed needs more items to satisfy the “month” rule.
+                if key == "forexfactory":
+                    fut = ex.submit(fetch_fn, limit_max_items=500)
+                else:
+                    fut = ex.submit(fetch_fn, limit=10)
+                future_map[fut] = key
+
+            fetched_keys = set()
+            for fut in as_completed(future_map):
+                key = future_map[fut]
+                fetched_keys.add(key)
+                try:
+                    results[key] = fut.result() or []
+                except Exception:
+                    results[key] = []
+
+                cache[key] = {
+                    "fetched_at": now_ts,
+                    "items": results[key],
+                }
+
+            # Persist cache only if we successfully fetched anything.
+            save_cache(cache)
+
+    return (
+        results.get("financialjuice", []) or [],
+        results.get("zerohedge", []) or [],
+        results.get("unusual_whales", []) or [],
+        results.get("forexfactory", []) or [],
+    )
+
 def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals, 
                   df_4h, df_1d, df_1h,
                   active_1d, active_4h, active_1h,
-                  type_1d, type_4h, type_1h):
+                  type_1d, type_4h, type_1h,
+                  news_financialjuice, news_zerohedge, news_unusual_whales, news_forexfactory):
     
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
@@ -340,6 +783,36 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
         align_text = '✕ NO ALIGNMENT'
         align_color = 'var(--muted)'
 
+    def render_news_items(items, max_items=10):
+        if not items:
+            return '<div class="empty-state">— No items —</div>'
+
+        out = []
+        for it in items[:max_items]:
+            title = escape(str(it.get("title", "(untitled)")))
+            url = it.get("url")
+            dt_txt = it.get("datetime")
+            dt_txt = escape(str(dt_txt)) if dt_txt else ""
+
+            if url:
+                safe_url = escape(str(url))
+                title_html = (
+                    f'<a class="news-link" href="{safe_url}" target="_blank" '
+                    f'rel="noopener noreferrer">{title}</a>'
+                )
+            else:
+                title_html = f'<div class="news-title">{title}</div>'
+
+            time_html = f'<div class="news-time">{dt_txt}</div>' if dt_txt else ""
+            out.append(f'<div class="news-item">{title_html}{time_html}</div>')
+        return "".join(out)
+
+    news_financialjuice_html = render_news_items(news_financialjuice)
+    news_zerohedge_html = render_news_items(news_zerohedge)
+    news_unusual_whales_html = render_news_items(news_unusual_whales)
+    # Economic tab can contain multiple “high impact” events across the month.
+    news_forexfactory_html = render_news_items(news_forexfactory, max_items=500)
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -432,6 +905,46 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
         .mtf-align {{ font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); color: {align_color}; }}
         .footer {{ border-top: 1px solid var(--border); padding-top: 24px; margin-top: 16px; text-align: center; color: var(--muted); font-size: 12px; opacity: 0; animation: fadeUp 0.4s ease forwards; animation-delay: 0.75s; }}
         @keyframes fadeUp {{ from {{ opacity: 0; transform: translateY(16px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+
+        /* News tabs */
+        .news-card {{
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 32px;
+            opacity: 0;
+            animation: fadeUp 0.4s ease forwards;
+            animation-delay: 0.6s;
+        }}
+        .news-tab-buttons {{ display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }}
+        .news-tab-btn {{
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            color: var(--muted);
+            background: #00b4ff0d;
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            border-radius: 999px;
+            cursor: pointer;
+        }}
+        .news-tab-btn.active {{
+            color: var(--accent);
+            background: #00b4ff1a;
+            border-color: #00b4ff66;
+        }}
+        .news-tab-pane {{ display: none; }}
+        .news-tab-pane.active {{ display: block; }}
+        .news-item {{
+            padding: 10px 0;
+            border-top: 1px solid var(--border);
+        }}
+        .news-item:first-child {{ border-top: none; padding-top: 0; }}
+        .news-title {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; color: var(--text); line-height: 1.4; }}
+        .news-time {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 11px; color: var(--muted); margin-top: 6px; }}
+        .news-link {{ text-decoration: none; color: var(--text); }}
+        .news-link:hover {{ color: var(--accent); }}
     </style>
 </head>
 <body>
@@ -502,6 +1015,41 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
             </div>
             <div class="mtf-align">{align_text}</div>
         </div>
+
+        <div class="section-title">NEWS</div>
+        <div class="news-card">
+            <div class="news-tab-buttons">
+                <button class="news-tab-btn active" type="button" data-tab="news_financialjuice">FinancialJuice</button>
+                <button class="news-tab-btn" type="button" data-tab="news_zerohedge">ZeroHedge</button>
+                <button class="news-tab-btn" type="button" data-tab="news_unusual_whales">Unusual Whales</button>
+                <button class="news-tab-btn" type="button" data-tab="news_forexfactory">ForexFactory (Economic)</button>
+            </div>
+
+            <div class="news-tab-pane active" id="news_financialjuice">
+                {news_financialjuice_html}
+            </div>
+            <div class="news-tab-pane" id="news_zerohedge">
+                {news_zerohedge_html}
+            </div>
+            <div class="news-tab-pane" id="news_unusual_whales">
+                {news_unusual_whales_html}
+            </div>
+            <div class="news-tab-pane" id="news_forexfactory">
+                {news_forexfactory_html}
+            </div>
+        </div>
+
+        <script>
+            (function () {{
+                const btns = document.querySelectorAll('.news-tab-btn');
+                const panes = document.querySelectorAll('.news-tab-pane');
+                const setActive = (tabId) => {{
+                    btns.forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+                    panes.forEach(p => p.classList.toggle('active', p.id === tabId));
+                }};
+                btns.forEach(b => b.addEventListener('click', () => setActive(b.dataset.tab)));
+            }} )();
+        </script>
         
         <div class="footer">
             Data: Binance Public API (BTCUSDT) &middot; Generated {timestamp} &middot; This is not financial advice. For educational purposes only.
@@ -590,16 +1138,20 @@ def main():
         conf_count = sum([1 for s in [s1, s2, s3, np.sign(s4)] if np.sign(s) == target])
         confidence = max(1, min(5, conf_count))
         
-    print("[6/7] Generating HTML report...")
+    print("[6/7] Fetching news & economics...")
+    news_financialjuice, news_zerohedge, news_unusual_whales, news_forexfactory = fetch_all_news_concurrent()
+
+    print("[7/7] Generating HTML report...")
     html_out = generate_html(bias, confidence, s1, s2, s3, s4, MACD_hist, (K, D, J), (ATR, atr_ratio), 
-                             df_4h, df_1d, df_1h, active_1d, active_4h, active_1h, type_1d, type_4h, type_1h)
+                             df_4h, df_1d, df_1h, active_1d, active_4h, active_1h, type_1d, type_4h, type_1h,
+                             news_financialjuice, news_zerohedge, news_unusual_whales, news_forexfactory)
     
     os.makedirs("reports", exist_ok=True)
     report_path = os.path.abspath(os.path.join("reports", "btc_report.html"))
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(html_out)
         
-    print("[7/7] Done.")
+    print("✓ Done.")
     print(f"✓ Report generated: {report_path}")
     print(f"✓ Bias: {bias} (Confidence: {confidence}/5)")
     print(f"✓ Opening in Google Chrome...")
