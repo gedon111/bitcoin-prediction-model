@@ -703,33 +703,31 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
         summary = "Conflicting signals across timeframes. No clear directional edge. Caution advised."
         
     def get_signal_pill(s):
-        if s > 0: return '<span class="signal-pill bull">▲ BULL</span>'
-        if s < 0: return '<span class="signal-pill bear">▼ BEAR</span>'
-        return '<span class="signal-pill neutral">— NEUT</span>'
+        if s > 0: return '<span class="signal-pill bull"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg> BULL</span>'
+        if s < 0: return '<span class="signal-pill bear"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg> BEAR</span>'
+        return '<span class="signal-pill neutral"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg> NEUT</span>'
         
     def render_ob_column(title, active_obs):
         html = f'<div class="ob-column"><div class="ob-header-pill">{title}</div>'
         if not active_obs:
-            html += '<div class="empty-state">— No active OBs —</div>'
+            html += '<div class="empty-state">No active zones</div>'
         else:
             for ob in active_obs:
-                type_color = 'var(--bull)' if ob['type'] == 'DEMAND' else 'var(--bear)'
-                html += f'<div class="ob-card stagger-item" style="border-left-color: {type_color}">'
+                is_demand = ob['type'] == 'DEMAND'
+                type_color = 'var(--bull)' if is_demand else 'var(--bear)'
+                type_class = 'bull-bg' if is_demand else 'bear-bg'
                 
-                type_class = 'bull-bg' if ob['type'] == 'DEMAND' else 'bear-bg'
+                html += f'<div class="ob-card stagger-item">'
+                
                 html += f'<div class="ob-top-row">'
                 html += f'<span class="ob-type-pill {type_class}">{ob["type"]}</span>'
-                html += f'<span class="ob-level-pill">{ob["level"]}</span>'
+                html += f'<span class="ob-level-text">{ob["level"]} &bull; {ob["structure"]}</span>'
                 html += '</div>'
                 
                 html += f'<div class="ob-price">${ob["top"]:,.2f} &mdash; ${ob["bottom"]:,.2f}</div>'
                 
-                struct_color = 'var(--neutral)' if ob['structure'] == 'CHoCH' else 'var(--accent)'
-                html += f'<div class="ob-struct" style="color: {struct_color}">{ob["structure"]}</div>'
-                
-                stars_html = ''.join(['<span class="star-filled">★</span>' for _ in range(ob['quality'])])
-                stars_html += ''.join(['<span class="star-empty">☆</span>' for _ in range(5 - ob['quality'])])
-                html += f'<div class="ob-quality"><span style="color: {type_color}">{stars_html}</span> <span class="ob-score-num">({ob["quality"]}/5)</span></div>'
+                html += f'<div class="ob-quality-row">'
+                html += f'<span class="ob-score" style="color: {type_color};">Quality: {ob["quality"]}/5</span>'
                 
                 badges = []
                 if ob['quality_displacement']: badges.append('DISP')
@@ -739,23 +737,22 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
                 if ob['quality_volume_expansion']: badges.append('VOL')
                 
                 if badges:
-                    html += '<div class="ob-badges">'
-                    for b in badges:
-                        html += f'<span class="ob-badge">{b}</span>'
-                    html += '</div>'
+                    html += f'<span class="ob-badges-text">&bull; {", ".join(badges)}</span>'
+                html += '</div>'
+                
                 html += '</div>'
         html += '</div>'
         return html
         
     def render_mtf_col(tf, t_type, price):
         if t_type == 'DEMAND':
-            text = '↑ DEMAND'
+            text = '↑ Demand'
             color = 'var(--bull)'
         elif t_type == 'SUPPLY':
-            text = '↓ SUPPLY'
+            text = '↓ Supply'
             color = 'var(--bear)'
         else:
-            text = '— NONE'
+            text = '— None'
             color = 'var(--muted)'
             
         p_str = f"${price:,.2f} Mid" if t_type else "No OBs"
@@ -771,21 +768,21 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
     supplies = [t for t in [type_1d, type_4h, type_1h] if t == 'SUPPLY']
     
     if len(demands) == 3:
-        align_text = '✓ FULL MTF ALIGNMENT'
+        align_text = 'Full Alignment'
         align_color = 'var(--bull)'
     elif len(supplies) == 3:
-        align_text = '✓ FULL MTF ALIGNMENT'
+        align_text = 'Full Alignment'
         align_color = 'var(--bear)'
     elif len(demands) == 2 or len(supplies) == 2:
-        align_text = '~ PARTIAL ALIGNMENT (2/3)'
+        align_text = 'Partial Alignment (2/3)'
         align_color = 'var(--neutral)'
     else:
-        align_text = '✕ NO ALIGNMENT'
+        align_text = 'No Alignment'
         align_color = 'var(--muted)'
 
     def render_news_items(items, max_items=10):
         if not items:
-            return '<div class="empty-state">— No items —</div>'
+            return '<div class="empty-state">No items available</div>'
 
         out = []
         for it in items[:max_items]:
@@ -810,7 +807,6 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
     news_financialjuice_html = render_news_items(news_financialjuice)
     news_zerohedge_html = render_news_items(news_zerohedge)
     news_unusual_whales_html = render_news_items(news_unusual_whales)
-    # Economic tab can contain multiple “high impact” events across the month.
     news_forexfactory_html = render_news_items(news_forexfactory, max_items=500)
 
     html = f"""<!DOCTYPE html>
@@ -819,218 +815,181 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BTC Next-Day Bias Report</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Syne:wght@400;700&family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {{
-            --bg: #080b12;
-            --surface: #0d1118;
-            --card: #121926;
-            --border: #1c2a3a;
-            --bull: #00e676;
-            --bear: #ff1744;
-            --neutral: #ffab00;
-            --accent: #00b4ff;
-            --text: #dce3f0;
-            --muted: #4f6080;
-            --grid: #141e2e;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --bull: #10b981;
+            --bear: #ef4444;
+            --neutral: #f59e0b;
+            --accent: #0ea5e9;
+            --text-main: #0f172a;
+            --muted: #64748b;
+            --muted-bg: #f1f5f9;
         }}
         * {{ box-sizing: border-box; margin: 0; padding: 0; }}
         body {{
             background: var(--bg);
-            color: var(--text);
-            font-family: 'DM Sans', sans-serif;
+            color: var(--text-main);
+            font-family: 'Inter', sans-serif;
             min-height: 100vh;
-            line-height: 1.45;
+            line-height: 1.5;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            background-image: 
-              repeating-linear-gradient(0deg, transparent, transparent 39px, var(--grid) 39px, var(--grid) 40px),
-              repeating-linear-gradient(90deg, transparent, transparent 39px, var(--grid) 39px, var(--grid) 40px);
         }}
-        .container {{ max-width: 1600px; margin: 0 auto; padding: 26px 24px; }}
-        .header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 32px; }}
+        .container {{ max-width: 1200px; margin: 0 auto; padding: 40px 24px; }}
+        
+        .header {{ display: flex; justify-content: space-between; align-items: center; padding-bottom: 24px; margin-bottom: 40px; border-bottom: 1px solid var(--border); }}
         .header-left {{ display: flex; flex-direction: column; gap: 4px; }}
-        .header-title {{ font-family: 'Orbitron', sans-serif; font-size: 18px; color: var(--accent); font-weight: 700; }}
-        .header-subtext {{ font-family: 'DM Sans', sans-serif; color: var(--muted); font-size: 12px; }}
-        .header-time {{ font-family: 'JetBrains Mono', monospace; color: var(--muted); font-size: 12px; }}
-        .bias-hero {{ text-align: center; margin-bottom: 40px; }}
-        .bias-label {{ font-family: 'Orbitron', sans-serif; letter-spacing: 0.3em; color: var(--muted); font-size: 11px; text-transform: uppercase; margin-bottom: 16px; font-weight: 700; }}
+        .header-title {{ font-family: 'Outfit', sans-serif; font-size: 24px; color: var(--text-main); font-weight: 700; display: flex; align-items: center; gap: 8px; }}
+        .header-subtext {{ font-size: 14px; color: var(--muted); font-weight: 500; }}
+        .header-time {{ font-family: 'JetBrains Mono', monospace; color: var(--muted); font-size: 13px; background: var(--surface); padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border); }}
+        
+        .bias-hero {{ text-align: center; margin-bottom: 64px; background: var(--surface); padding: 48px; border-radius: 16px; border: 1px solid var(--border); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }}
+        .bias-label {{ font-family: 'Outfit', sans-serif; letter-spacing: 0.1em; color: var(--muted); font-size: 12px; text-transform: uppercase; margin-bottom: 24px; font-weight: 600; }}
         .bias-badge {{
-            display: inline-block; font-family: 'Orbitron', sans-serif; font-weight: 900;
-            font-size: clamp(48px, 8vw, 96px); color: {bias_color}; text-shadow: 0 0 40px {bias_color}99;
-            border: 2px solid {bias_color}4d; padding: 24px 48px; border-radius: 4px;
-            background: {bias_color}0d; animation: pulse-glow 2s ease-in-out infinite;
+            display: inline-block; font-family: 'Outfit', sans-serif; font-weight: 700;
+            font-size: clamp(40px, 6vw, 72px); color: {bias_color}; 
+            line-height: 1; letter-spacing: -0.02em;
         }}
-        @keyframes pulse-glow {{ 0%, 100% {{ box-shadow: 0 0 20px {bias_color}4d; }} 50% {{ box-shadow: 0 0 60px {bias_color}cc, 0 0 100px {bias_color}4d; }} }}
-        .conf-label {{ font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 0.2em; color: var(--muted); margin-top: 32px; font-weight: 700; }}
-        .conf-bar {{ display: flex; justify-content: center; gap: 6px; margin-top: 12px; }}
-        .conf-segment {{ width: 48px; height: 6px; border-radius: 3px; }}
+        
+        .conf-wrapper {{ margin-top: 32px; display: inline-flex; flex-direction: column; align-items: center; }}
+        .conf-label {{ font-family: 'Outfit', sans-serif; font-size: 12px; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; text-transform: uppercase; margin-bottom: 12px; }}
+        .conf-bar {{ display: flex; justify-content: center; gap: 4px; }}
+        .conf-segment {{ width: 40px; height: 4px; border-radius: 2px; transition: background-color 0.3s ease; }}
         .conf-filled {{ background: {bias_color}; }}
         .conf-empty {{ background: var(--border); }}
-        .conf-text {{ font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-top: 12px; color: var(--muted); }}
-        .bias-summary {{ margin: 20px auto 0; max-width: 480px; font-size: 15px; line-height: 1.6; }}
-        .section-title {{ font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; margin-bottom: 16px; }}
-        .section-note {{ font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--muted); margin-top: -12px; margin-bottom: 16px; }}
-        .grid-3 {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 24px; }}
-        .ob-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }}
-        .indicator-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 18px; opacity: 1; animation: none; }}
-        .ic-1 {{ animation-delay: 0.3s; }} .ic-2 {{ animation-delay: 0.4s; }} .ic-3 {{ animation-delay: 0.5s; }}
-        .card-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }}
-        .card-title {{ font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 11px; letter-spacing: 0.25em; color: var(--muted); text-transform: uppercase; }}
-        .signal-pill {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 11px; padding: 3px 10px; border-radius: 100px; display: inline-flex; }}
-        .signal-pill.bull {{ color: var(--bull); background: #00e6761f; border: 1px solid #00e67666; }}
-        .signal-pill.bear {{ color: var(--bear); background: #ff17441f; border: 1px solid #ff174466; }}
-        .signal-pill.neutral {{ color: var(--neutral); background: #ffab001f; border: 1px solid #ffab0066; }}
-        .val-large {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 28px; color: var(--text); line-height: 1.2; }}
-        .val-sub {{ font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); margin-top: 4px; }}
-        .val-meta {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 16px; }}
-        .ob-panel {{ opacity: 1; animation: none; }}
-        .ob-header-pill {{ display: inline-block; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px; background: #00b4ff1a; border: 1px solid #00b4ff4d; padding: 6px 16px; border-radius: 4px; margin-bottom: 16px; color: var(--accent); }}
-        .empty-state {{ text-align: center; color: var(--muted); font-size: 13px; font-style: italic; padding: 20px 0; }}
-        .ob-card {{ background: var(--card); border-radius: 0 6px 6px 0; border: 1px solid var(--border); border-left-width: 3px; padding: 14px 16px; margin-bottom: 10px; }}
-        .ob-top-row {{ display: flex; justify-content: space-between; align-items: center; }}
-        .ob-type-pill {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 10px; text-transform: uppercase; border-radius: 100px; padding: 2px 8px; }}
-        .bull-bg {{ color: var(--bull); background: #00e6761f; }} .bear-bg {{ color: var(--bear); background: #ff17441f; }}
-        .ob-level-pill {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 10px; color: var(--muted); background: #1c2a3a80; border-radius: 100px; padding: 2px 8px; }}
-        .ob-price {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 15px; color: var(--text); margin: 8px 0; }}
-        .ob-struct {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 11px; }}
-        .ob-quality {{ margin-top: 8px; font-size: 14px; }}
-        .star-filled {{ font-size: 14px; }} .star-empty {{ font-size: 14px; color: #4f608066; }}
-        .ob-score-num {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 11px; color: var(--muted); }}
-        .ob-badges {{ display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }}
-        .ob-badge {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 9px; color: var(--accent); background: #00b4ff14; border: 1px solid #00b4ff40; padding: 1px 6px; border-radius: 100px; }}
-        .mtf-card {{ background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 24px; opacity: 1; animation: none; }}
+        .conf-text {{ font-size: 13px; margin-top: 12px; color: var(--muted); font-weight: 500; }}
+        
+        .bias-summary {{ margin: 24px auto 0; max-width: 540px; font-size: 16px; line-height: 1.6; color: var(--text-main); }}
+        
+        .section-title {{ font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 18px; color: var(--text-main); margin-bottom: 20px; }}
+        .section-note {{ font-size: 14px; color: var(--muted); margin-top: -12px; margin-bottom: 24px; }}
+        
+        .grid-3 {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 32px; }}
+        .ob-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }}
+        
+        .indicator-card {{ background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); transition: transform 0.2s ease, box-shadow 0.2s ease; }}
+        .indicator-card:hover {{ transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}
+        .card-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }}
+        .card-title {{ font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 14px; color: var(--text-main); }}
+        
+        .signal-pill {{ font-family: 'Inter', sans-serif; font-weight: 600; font-size: 12px; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; }}
+        .signal-pill.bull {{ color: var(--bull); background: #10b9811a; }}
+        .signal-pill.bear {{ color: var(--bear); background: #ef44441a; }}
+        .signal-pill.neutral {{ color: var(--neutral); background: #f59e0b1a; }}
+        
+        .val-large {{ font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 32px; color: var(--text-main); line-height: 1.1; letter-spacing: -0.02em; }}
+        .val-sub {{ font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--muted); margin-top: 8px; font-weight: 400; }}
+        .val-meta {{ font-size: 13px; color: var(--muted); margin-top: 16px; font-weight: 500; display: inline-block; background: var(--muted-bg); padding: 4px 8px; border-radius: 4px; }}
+        
+        .ob-header-pill {{ font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 16px; border-bottom: 2px solid var(--border); padding-bottom: 8px; display: inline-block; }}
+        .empty-state {{ text-align: center; color: var(--muted); font-size: 14px; padding: 32px 0; background: var(--surface); border: 1px dashed var(--border); border-radius: 12px; }}
+        
+        .ob-card {{ background: var(--surface); border-radius: 12px; border: 1px solid var(--border); padding: 20px; margin-bottom: 16px; transition: transform 0.2s ease, box-shadow 0.2s ease; position: relative; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }}
+        .ob-card:hover {{ transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }}
+        .ob-card::before {{ content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--border); transition: background 0.2s ease; }}
+        .ob-card:has(.bull-bg)::before {{ background: var(--bull); }}
+        .ob-card:has(.bear-bg)::before {{ background: var(--bear); }}
+        
+        .ob-top-row {{ display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }}
+        .ob-type-pill {{ font-family: 'Inter', sans-serif; font-weight: 600; font-size: 11px; text-transform: uppercase; border-radius: 4px; padding: 2px 6px; letter-spacing: 0.05em; }}
+        .bull-bg {{ color: var(--bull); background: #10b9811a; }} 
+        .bear-bg {{ color: var(--bear); background: #ef44441a; }}
+        .ob-level-text {{ font-size: 13px; color: var(--muted); font-weight: 500; }}
+        
+        .ob-price {{ font-family: 'JetBrains Mono', monospace; font-weight: 500; font-size: 18px; color: var(--text-main); margin-bottom: 12px; }}
+        .ob-quality-row {{ font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }}
+        .ob-score {{ font-weight: 600; }}
+        .ob-badges-text {{ color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 12px; }}
+        
+        .mtf-card {{ background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }}
         .mtf-row {{ display: flex; text-align: center; }}
         .mtf-col {{ flex: 1; padding: 0 16px; border-right: 1px solid var(--border); }}
         .mtf-col:last-child {{ border-right: none; }}
-        .mtf-tf {{ font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 12px; color: var(--accent); }}
-        .mtf-type {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 14px; margin-top: 8px; }}
-        .mtf-price {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 11px; color: var(--muted); margin-top: 4px; }}
-        .mtf-align {{ font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); color: {align_color}; }}
-        .footer {{ border-top: 1px solid var(--border); padding-top: 24px; margin-top: 16px; text-align: center; color: var(--muted); font-size: 12px; opacity: 0; animation: fadeUp 0.4s ease forwards; animation-delay: 0.75s; }}
-        @keyframes fadeUp {{ from {{ opacity: 0; transform: translateY(16px); }} to {{ opacity: 1; transform: translateY(0); }} }}
-
-        /* Top-level tabs */
+        .mtf-tf {{ font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 13px; color: var(--muted); margin-bottom: 8px; }}
+        .mtf-type {{ font-weight: 600; font-size: 15px; margin-bottom: 4px; }}
+        .mtf-price {{ font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--muted); }}
+        .mtf-align {{ font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 14px; text-align: center; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border); color: {align_color}; display: flex; justify-content: center; align-items: center; gap: 8px; }}
+        
+        .footer {{ border-top: 1px solid var(--border); padding-top: 32px; margin-top: 64px; text-align: center; color: var(--muted); font-size: 13px; }}
+        
         .top-tabs-bar {{
-            position: sticky;
-            top: 0;
-            z-index: 30;
-            margin: 18px 0 22px;
-            padding: 12px 0 12px;
-            background: rgba(8, 11, 18, 0.78);
-            backdrop-filter: blur(10px);
+            position: sticky; top: 0; z-index: 30;
+            margin: 0 0 32px 0; padding: 16px 0;
+            background: rgba(248, 250, 252, 0.9);
+            backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
         }}
-        .top-tab-buttons {{ display: flex; gap: 10px; flex-wrap: wrap; }}
+        .top-tab-buttons {{ display: flex; gap: 8px; flex-wrap: wrap; }}
         .top-tab-btn {{
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            font-size: 12px;
-            letter-spacing: 0.02em;
-            color: var(--muted);
-            background: #00b4ff0d;
-            border: 1px solid var(--border);
-            padding: 10px 14px;
-            border-radius: 999px;
-            cursor: pointer;
-            transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease;
+            font-family: 'Inter', sans-serif; font-weight: 500; font-size: 14px;
+            color: var(--muted); background: transparent; border: none;
+            padding: 8px 16px; border-radius: 8px; cursor: pointer;
+            transition: all 0.2s ease;
         }}
-        .top-tab-btn:hover {{ transform: translateY(-1px); border-color: #2a415f; }}
-        .top-tab-btn.active {{
-            color: var(--accent);
-            background: #00b4ff1a;
-            border-color: #00b4ff66;
-        }}
+        .top-tab-btn:hover {{ color: var(--text-main); background: var(--muted-bg); }}
+        .top-tab-btn.active {{ color: var(--accent); background: #0ea5e91a; font-weight: 600; }}
 
-        .top-tab-pane {{ display: none; }}
-        .top-tab-pane.active {{
-            display: block;
-            animation: panelIn 240ms ease-out;
-        }}
-        @keyframes panelIn {{
-            from {{ opacity: 0; transform: translateY(10px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
+        .top-tab-pane {{ display: none; opacity: 0; transition: opacity 0.3s ease; }}
+        .top-tab-pane.active {{ display: block; opacity: 1; animation: fadeIn 0.4s ease-out; }}
+        @keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
 
-        .stagger-item {{
-            opacity: 0;
-            transform: translateY(10px);
-        }}
-        .top-tab-pane.active .stagger-item {{
-            animation: itemIn 260ms ease-out forwards;
-        }}
-        @keyframes itemIn {{
-            from {{ opacity: 0; transform: translateY(10px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
+        .stagger-item {{ opacity: 0; transform: translateY(10px); }}
+        .top-tab-pane.active .stagger-item {{ animation: itemIn 0.4s ease-out forwards; }}
+        @keyframes itemIn {{ from {{ opacity: 0; transform: translateY(10px); }} to {{ opacity: 1; transform: translateY(0); }} }}
 
-        /* News tabs */
-        .news-card {{
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 32px;
-            opacity: 0;
-            animation: fadeUp 0.4s ease forwards;
-            animation-delay: 0.6s;
-        }}
-        .news-tab-buttons {{ display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }}
+        .news-card {{ background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }}
+        .news-tab-buttons {{ display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }}
         .news-tab-btn {{
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            font-size: 11px;
-            color: var(--muted);
-            background: #00b4ff0d;
-            border: 1px solid var(--border);
-            padding: 8px 12px;
-            border-radius: 999px;
-            cursor: pointer;
+            font-family: 'Inter', sans-serif; font-weight: 500; font-size: 13px;
+            color: var(--muted); background: transparent; border: none;
+            padding: 6px 12px; border-radius: 6px; cursor: pointer; transition: all 0.2s ease;
         }}
-        .news-tab-btn.active {{
-            color: var(--accent);
-            background: #00b4ff1a;
-            border-color: #00b4ff66;
-        }}
+        .news-tab-btn:hover {{ color: var(--text-main); background: var(--muted-bg); }}
+        .news-tab-btn.active {{ color: var(--accent); background: #0ea5e91a; font-weight: 600; }}
+        
         .news-tab-pane {{ display: none; }}
-        .news-tab-pane.active {{
-            display: block;
-            animation: newsPanelIn 200ms ease-out;
-        }}
-        @keyframes newsPanelIn {{
-            from {{ opacity: 0; transform: translateY(8px); }}
-            to {{ opacity: 1; transform: translateY(0); }}
-        }}
-        .news-item {{
-            padding: 10px 0;
-            border-top: 1px solid var(--border);
-        }}
-        .news-item:first-child {{ border-top: none; padding-top: 0; }}
-        .news-title {{ font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 13px; color: var(--text); line-height: 1.4; }}
-        .news-time {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 11px; color: var(--muted); margin-top: 6px; }}
-        .news-link {{ text-decoration: none; color: var(--text); }}
+        .news-tab-pane.active {{ display: block; animation: fadeIn 0.3s ease-out; }}
+        
+        .news-item {{ padding: 16px 0; border-bottom: 1px solid var(--border); transition: background-color 0.2s ease; margin: 0 -24px; padding: 16px 24px; }}
+        .news-item:last-child {{ border-bottom: none; }}
+        .news-item:hover {{ background-color: var(--muted-bg); }}
+        
+        .news-title {{ font-family: 'Inter', sans-serif; font-weight: 500; font-size: 15px; color: var(--text-main); line-height: 1.5; }}
+        .news-time {{ font-family: 'JetBrains Mono', monospace; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 6px; }}
+        .news-link {{ text-decoration: none; color: var(--text-main); display: block; }}
         .news-link:hover {{ color: var(--accent); }}
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header section-block" style="animation: fadeUp 0.4s ease forwards; opacity:0; animation-delay: 0s;">
+        <div class="header">
             <div class="header-left">
-                <div class="header-title">₿ BTC/USDT</div>
-                <div class="header-subtext">Next-Day Directional Bias</div>
+                <div class="header-title">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #f7931a;"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>
+                    BTC/USDT
+                </div>
+                <div class="header-subtext">Next-Day Directional Bias Report</div>
             </div>
             <div class="header-time">{timestamp}</div>
         </div>
         
-        <div class="bias-hero section-block" style="animation: fadeUp 0.4s ease forwards; opacity:0; animation-delay: 0.15s;">
-            <div class="bias-label">TOMORROW'S BIAS</div>
+        <div class="bias-hero">
+            <div class="bias-label">Tomorrow's Bias</div>
             <div class="bias-badge">{bias}</div>
-            <div class="conf-label">SIGNAL CONFIDENCE</div>
-            <div class="conf-bar">
-                {''.join(['<div class="conf-segment conf-filled"></div>' for _ in range(confidence)])}
-                {''.join(['<div class="conf-segment conf-empty"></div>' for _ in range(5 - confidence)])}
+            
+            <div class="conf-wrapper">
+                <div class="conf-label">Signal Confidence</div>
+                <div class="conf-bar">
+                    {''.join(['<div class="conf-segment conf-filled"></div>' for _ in range(confidence)])}
+                    {''.join(['<div class="conf-segment conf-empty"></div>' for _ in range(5 - confidence)])}
+                </div>
+                <div class="conf-text">{confidence} / 5 Signals Confirming</div>
             </div>
-            <div class="conf-text">{confidence} / 5 signals confirm</div>
+            
             <div class="bias-summary">{summary}</div>
         </div>
         
@@ -1038,69 +997,75 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
             <div class="top-tab-buttons">
                 <button class="top-tab-btn active" type="button" data-tab="tab_indicators">Indicators</button>
                 <button class="top-tab-btn" type="button" data-tab="tab_orderblocks">Order Blocks</button>
-                <button class="top-tab-btn" type="button" data-tab="tab_news">News</button>
+                <button class="top-tab-btn" type="button" data-tab="tab_news">News Feed</button>
             </div>
         </div>
 
         <div class="top-tab-pane active" id="tab_indicators">
-            <div class="section-title">INDICATOR SIGNALS</div>
+            <div class="section-title">Technical Indicators</div>
             <div class="grid-3">
-                <div class="indicator-card stagger-item ic-1">
+                <div class="indicator-card stagger-item" style="animation-delay: 0.1s;">
                     <div class="card-header">
-                        <div class="card-title">MACD</div>
+                        <div class="card-title">MACD Momentum</div>
                         {get_signal_pill(s1)}
                     </div>
                     <div class="val-large">{'+' if s1_val > 0 else ''}{s1_val:,.1f}</div>
-                    <div class="val-meta">Hist trend: {'↑' if s1 == 1 else '↓' if s1 == -1 else '-'}</div>
+                    <div class="val-meta">Trend: {'Upward' if s1 == 1 else 'Downward' if s1 == -1 else 'Flat'}</div>
                 </div>
-                <div class="indicator-card stagger-item ic-2">
+                <div class="indicator-card stagger-item" style="animation-delay: 0.2s;">
                     <div class="card-header">
-                        <div class="card-title">KDJ</div>
+                        <div class="card-title">KDJ Oscillator</div>
                         {get_signal_pill(s2)}
                     </div>
-                    <div class="val-sub" style="font-size: 14px; margin-top: 0; font-weight:600; color:var(--text);">K: {kdj_vals[0]:.1f}<br>D: {kdj_vals[1]:.1f}<br>J: {kdj_vals[2]:.1f}</div>
+                    <div class="val-sub" style="font-size: 15px; margin-top: 0; font-weight:500; color:var(--text-main); font-family: 'JetBrains Mono', monospace;">
+                        K: {kdj_vals[0]:.1f} &nbsp; D: {kdj_vals[1]:.1f} &nbsp; J: {kdj_vals[2]:.1f}
+                    </div>
                     <div class="val-meta">Zone: {'Overbought' if kdj_vals[2] > 80 else 'Oversold' if kdj_vals[2] < 20 else 'Neutral'}</div>
                 </div>
-                <div class="indicator-card stagger-item ic-3">
+                <div class="indicator-card stagger-item" style="animation-delay: 0.3s;">
                     <div class="card-header">
-                        <div class="card-title">ATR</div>
-                        <span class="signal-pill neutral">— NEUT</span>
+                        <div class="card-title">ATR Volatility</div>
+                        <span class="signal-pill neutral"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg> NEUT</span>
                     </div>
                     <div class="val-large">{atr_vals[0]:.1f}</div>
-                    <div class="val-sub">ATR/200 ratio: {atr_vals[1]:.2f}</div>
-                    <div class="val-meta">Regime: {'Low Vol' if atr_vals[1] < 0.8 else 'High Vol'}</div>
+                    <div class="val-sub">ATR/200 Ratio: {atr_vals[1]:.2f}</div>
+                    <div class="val-meta">Regime: {'Low Volatility' if atr_vals[1] < 0.8 else 'High Volatility'}</div>
                 </div>
             </div>
             
             <div class="mtf-card">
-                <div class="card-title" style="margin-bottom: 16px;">MTF CONFLUENCE</div>
+                <div class="card-title" style="margin-bottom: 24px; font-size: 16px;">Multi-Timeframe Confluence</div>
                 <div class="mtf-row">
-                    {render_mtf_col("1D", type_1d, sum([o['top']+o['bottom'] for o in active_1d if o['type']==type_1d])/2/len([o for o in active_1d if o['type']==type_1d]) if type_1d and [o for o in active_1d if o['type']==type_1d] else 0)}
-                    {render_mtf_col("4H", type_4h, sum([o['top']+o['bottom'] for o in active_4h if o['type']==type_4h])/2/len([o for o in active_4h if o['type']==type_4h]) if type_4h and [o for o in active_4h if o['type']==type_4h] else 0)}
-                    {render_mtf_col("1H", type_1h, sum([o['top']+o['bottom'] for o in active_1h if o['type']==type_1h])/2/len([o for o in active_1h if o['type']==type_1h]) if type_1h and [o for o in active_1h if o['type']==type_1h] else 0)}
+                    {render_mtf_col("1D Horizon", type_1d, sum([o['top']+o['bottom'] for o in active_1d if o['type']==type_1d])/2/len([o for o in active_1d if o['type']==type_1d]) if type_1d and [o for o in active_1d if o['type']==type_1d] else 0)}
+                    {render_mtf_col("4H Horizon", type_4h, sum([o['top']+o['bottom'] for o in active_4h if o['type']==type_4h])/2/len([o for o in active_4h if o['type']==type_4h]) if type_4h and [o for o in active_4h if o['type']==type_4h] else 0)}
+                    {render_mtf_col("1H Horizon", type_1h, sum([o['top']+o['bottom'] for o in active_1h if o['type']==type_1h])/2/len([o for o in active_1h if o['type']==type_1h]) if type_1h and [o for o in active_1h if o['type']==type_1h] else 0)}
                 </div>
-                <div class="mtf-align">{align_text}</div>
+                <div class="mtf-align">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    {align_text}
+                </div>
             </div>
         </div>
 
         <div class="top-tab-pane" id="tab_orderblocks">
-            <div class="section-title">ACTIVE ORDER BLOCKS — MULTI-TIMEFRAME</div>
-            <div class="section-note">All unmitigated OBs shown. Quality scored 0–5.</div>
-            <div class="ob-grid ob-panel">
-                {render_ob_column("1D", active_1d)}
-                {render_ob_column("4H", active_4h)}
-                {render_ob_column("1H", active_1h)}
+            <div class="section-title">Active Order Blocks</div>
+            <div class="section-note">Tracking unmitigated supply and demand zones across timeframes.</div>
+            <div class="ob-grid">
+                {render_ob_column("Daily (1D)", active_1d)}
+                {render_ob_column("4-Hour (4H)", active_4h)}
+                {render_ob_column("1-Hour (1H)", active_1h)}
             </div>
         </div>
 
         <div class="top-tab-pane" id="tab_news">
-            <div class="section-title">NEWS</div>
+            <div class="section-title">Market Intelligence</div>
+            <div class="section-note">Latest headlines and economic releases.</div>
             <div class="news-card">
                 <div class="news-tab-buttons">
                     <button class="news-tab-btn active" type="button" data-tab="news_financialjuice">FinancialJuice</button>
                     <button class="news-tab-btn" type="button" data-tab="news_zerohedge">ZeroHedge</button>
                     <button class="news-tab-btn" type="button" data-tab="news_unusual_whales">Unusual Whales</button>
-                    <button class="news-tab-btn" type="button" data-tab="news_forexfactory">ForexFactory (Economic)</button>
+                    <button class="news-tab-btn" type="button" data-tab="news_forexfactory">Economic Calendar</button>
                 </div>
 
                 <div class="news-tab-pane active" id="news_financialjuice">
@@ -1130,7 +1095,7 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
                     if (activePane) {{
                         const items = activePane.querySelectorAll('.stagger-item');
                         items.forEach((el, idx) => {{
-                            el.style.animationDelay = (idx * 70) + 'ms';
+                            el.style.animationDelay = (idx * 50) + 'ms';
                         }});
                     }}
                 }}
@@ -1153,7 +1118,8 @@ def generate_html(bias, confidence, s1, s2, s3, s4, s1_val, kdj_vals, atr_vals,
         </script>
         
         <div class="footer">
-            Data: Binance Public API (BTCUSDT) &middot; Generated {timestamp} &middot; This is not financial advice. For educational purposes only.
+            Data: Binance Public API (BTCUSDT) &middot; Generated {timestamp}<br>
+            <span style="font-size: 12px; margin-top: 8px; display: inline-block;">This is not financial advice. For educational purposes only.</span>
         </div>
     </div>
 </body>
